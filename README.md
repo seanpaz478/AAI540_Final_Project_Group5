@@ -1,1 +1,5 @@
 # AAI540_Final_Project_Group5
+
+Stress is a growing concern among students, affecting not only academic performance but also overall well-being and mental health. Early detection of stress patterns can help institutions and individuals take proactive measures to prevent burnout and improve student outcomes. The objective of this project is to develop a machine learning model that can monitor and predict student stress levels based on multiple factors such as academic workload, sleep patterns, social activities, and physiological indicators. By identifying high-risk students early, this solution could support more personalized interventions and resources for stress management.
+
+This project will address a classification problem in machine learning: predicting whether a student is experiencing low, medium, or high stress levels based on their reported and measured attributes. The model aims to provide actionable insights that could be applied in real-world academic settings, such as wellness apps or university support systems.
