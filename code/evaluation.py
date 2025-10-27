@@ -1,25 +1,32 @@
-import subprocess
-import sys
 
-# Install XGBoost if not already installed
-subprocess.check_call([sys.executable, "-m", "pip", "install", "xgboost"])
 
 import os
 import json
 import joblib
 import tarfile
+import glob
+import pickle
 import pandas as pd
 from sklearn.metrics import f1_score
 import xgboost as xgb
 
 # Paths for test data and models
-TEST_SKLEARN_PATH = "/opt/ml/processing/test_sklearn/test_sklearn.csv"
-TEST_XGB_PATH = "/opt/ml/processing/test_xgb/test_xgb.csv"
+TEST_SKLEARN_DIR = "/opt/ml/processing/test_sklearn"
+TEST_XGB_DIR = "/opt/ml/processing/test_xgb"
 SKLEARN_MODEL_DIR = "/opt/ml/processing/sklearn_model"
 XGB_MODEL_DIR = "/opt/ml/processing/xgb_model"
 OUTPUT_DIR = "/opt/ml/processing/output"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 METRICS_OUTPUT_PATH = os.path.join(OUTPUT_DIR, "evaluation.json")
+
+print("Contents of test_sklearn folder:")
+print(os.listdir("/opt/ml/processing/test_sklearn"))
+
+print("Contents of test_xgb folder:")
+print(os.listdir("/opt/ml/processing/test_xgb"))
+
+print("Contents of xgb_model folder:")
+print(os.listdir("/opt/ml/processing/xgb_model"))
 
 
 # Helper: Extract tar.gz if exists
@@ -39,7 +46,7 @@ sk_model_file = os.path.join(SKLEARN_MODEL_DIR, sk_files[0])
 sk_model = joblib.load(sk_model_file)
 
 # Loading SKLearn test set
-test_sklearn = pd.read_csv(TEST_SKLEARN_PATH)
+test_sklearn = pd.read_csv(TEST_SKLEARN_DIR + "/test.csv")
 y_test_sklearn = test_sklearn["anxiety_level_encoded"]
 X_test_sklearn = test_sklearn.drop(columns=["anxiety_level_encoded"])
 
@@ -49,17 +56,27 @@ f1_sklearn = f1_score(y_test_sklearn, preds_sklearn, average="macro")
 print(f"SKLearn Model F1: {f1_sklearn:.4f}")
 
 # Loading XGBoost model
-extract_tar_if_exists(XGB_MODEL_DIR)
-xgb_files = [f for f in os.listdir(XGB_MODEL_DIR) if f.endswith(".bst")]
-if not xgb_files:
-    raise FileNotFoundError(f"No XGBoost model (.bst) found in {XGB_MODEL_DIR}")
-xgb_model_path = os.path.join(XGB_MODEL_DIR, xgb_files[0])
+xgb_model_tar = os.path.join(XGB_MODEL_DIR, "model.tar.gz")
+if os.path.exists(xgb_model_tar):
+    print(f"Extracting {xgb_model_tar}...")
+    with tarfile.open(xgb_model_tar, "r:gz") as tar:
+        tar.extractall(path=XGB_MODEL_DIR)
+    print("Extraction complete. Contents:", os.listdir(XGB_MODEL_DIR))
+else:
+    print(f"No model.tar.gz found at {xgb_model_tar}")
 
+xgb_model_path = os.path.join(XGB_MODEL_DIR, "xgboost-model")
+
+if not os.path.exists(xgb_model_path):
+    raise FileNotFoundError(f"No XGBoost model found at {xgb_model_path}")
+
+print(f"Loading XGBoost model from {xgb_model_path} using xgb.Booster()...")
 xgb_model = xgb.Booster()
 xgb_model.load_model(xgb_model_path)
+print("Successfully loaded XGBoost model.")
 
 # Loading XGBoost test set
-test_xgb = pd.read_csv(TEST_XGB_PATH, header=None)
+test_xgb = pd.read_csv(TEST_XGB_DIR + "/test.csv")
 y_test_xgb = test_xgb.iloc[:, 0]
 X_test_xgb = test_xgb.iloc[:, 1:]
 
