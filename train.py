@@ -8,11 +8,11 @@ from sklearn.metrics import f1_score
 
 if __name__ == "__main__":
     train_dir = os.environ["SM_CHANNEL_TRAIN"]
-    val_dir = os.environ["SM_CHANNEL_VAL"]
+    val_dir = os.environ["SM_CHANNEL_VALIDATION", "/opt/ml/input/data/validation"]
     model_dir = os.environ["SM_MODEL_DIR"]
 
-    train_df = pd.read_csv(os.path.join(train_dir, "train.csv"))
-    val_df = pd.read_csv(os.path.join(val_dir, "validation.csv"))
+    train_df = pd.read_csv(os.path.join(train_dir, "train_sklearn.csv"))
+    val_df = pd.read_csv(os.path.join(val_dir, "val_sklearn.csv"))
 
     target_col = "anxiety_level_encoded"
     X_train = train_df.drop(columns=[target_col])

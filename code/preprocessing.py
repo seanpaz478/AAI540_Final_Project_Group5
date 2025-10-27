@@ -4,6 +4,7 @@ import sagemaker
 from sagemaker.feature_store.feature_group import FeatureGroup
 from sklearn.model_selection import train_test_split
 
+
 # Environment variables from ProcessingStep
 region = os.environ["AWS_REGION"]
 bucket = os.environ["BUCKET"]
