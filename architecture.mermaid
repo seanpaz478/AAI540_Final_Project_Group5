@@ -1,0 +1,137 @@
+---
+config:
+  theme: neo-dark
+  look: neo
+---
+flowchart LR
+ subgraph S0["Ingestion&nbsp;&nbsp;&nbsp;"]
+    direction TB
+        ext["OECD / National Centres<br>PISA Data Collection"] --> s3
+        s3["S3 — PISA Public-Use Files"]
+        athena["Athena Catalog / Staging"]
+  end
+ subgraph S1["Feature Store"]
+    direction LR
+        fg1["student-demographics-ses-fg"]
+        fg2@{ label: "student-performance-fg<br>'PV averages' → 'PCA(1..3)' → 'academic_performance_index'" }
+        fg3["student-wellbeing-fg"]
+        fg4@{ label: "student-anxiety-target-fg<br>'LabelEncoder(ANX_BAND_Q3_US)'" }
+  end
+ subgraph S2["Training&nbsp;"]
+    direction TB
+        split@{ label: "Stratified Splits<br>'60% dev' (train / val / test), '40% holdout'" }
+        logreg@{ label: "Baseline — Logistic Regression<br>'StandardScaler' → 'Multinomial'" }
+        xgb["XGBoost — SageMaker Built-in"]
+        compare@{ label: "Model Selection by 'Macro-F1'" }
+  end
+ subgraph S25["CI/CD"]
+    direction TB
+        pipe@{ label: "SageMaker Pipelines<br>'StudentAnxietyPipeline'" }
+        evalc@{ label: "Evaluation &amp; Compare<br>'Macro-F1' aggregation" }
+        condA@{ label: "Condition: 'Best Macro-F1 ≥ threshold?'" }
+        noPromo["No promotion<br>(stop / notify)"]
+        condB@{ label: "Condition: 'Winner == xgb?'" }
+        reg_xgb@{ label: "RegisterModel → Model Registry<br>'StudentAnxiety-XGBoost'" }
+        reg_skl@{ label: "RegisterModel → Model Registry<br>'StudentAnxiety-SKLearn'" }
+        approve@{ label: "ModelApprovalStatus<br>'PendingManualApproval'" }
+  end
+ subgraph S3["Production&nbsp;&nbsp;&nbsp;"]
+    direction TB
+      subgraph Ops["Inference&nbsp;"]
+        direction TB
+        endpoint@{ label: "SageMaker Endpoint<br>'ml.m5.xlarge'" }
+        batch@{ label: "Batch Transform<br>'ml.m5.large'" }
+        outpreds@{ label: "Predictions → S3<br>'JSON lines' / 'CSV'" }
+      end
+      subgraph S4["Governance&nbsp;"]
+          direction TB
+              mon@{ label: "Quality Analysis<br>'Accuracy • Precision/Recall/F1 • Confusion Matrix'" }
+              cw["CloudWatch Dashboard"]
+              policy@{ label: "De-identification Controls<br>'No-reidentification' Commitment" }
+        end
+  end
+    s3 --> athena
+    S0 --> S1
+    S1 --> S2
+    Ops --> S4
+    split --> logreg & xgb
+    logreg --> compare
+    xgb --> compare
+    S2 --> S25
+    pipe --> evalc
+    evalc --> condA
+    condA -- no --> noPromo
+    condA -- yes --> condB
+    condB -- yes --> reg_xgb
+    reg_xgb --> approve
+    condB -- no --> reg_skl
+    reg_skl --> approve
+    S25 --> S3
+    batch --> outpreds
+    endpoint -. data capture .-> outpreds
+    mon --> cw
+    fg2@{ shape: rect}
+    fg4@{ shape: rect}
+    split@{ shape: rect}
+    logreg@{ shape: rect}
+    compare@{ shape: rect}
+    pipe@{ shape: rect}
+    evalc@{ shape: rect}
+    condA@{ shape: rect}
+    condB@{ shape: rect}
+    reg_xgb@{ shape: rect}
+    reg_skl@{ shape: rect}
+    approve@{ shape: rect}
+    endpoint@{ shape: rect}
+    batch@{ shape: rect}
+    outpreds@{ shape: rect}
+    policy@{ shape: rect}
+    mon@{ shape: rect}
+     s3:::ingest
+     athena:::ingest
+     fg1:::feature
+     fg2:::feature
+     fg3:::feature
+     fg4:::feature
+     split:::train
+     logreg:::train
+     xgb:::train
+     compare:::train
+     pipe:::cicd
+     evalc:::cicd
+     condA:::cicd
+     noPromo:::cicd
+     condB:::cicd
+     reg_xgb:::registry
+     reg_skl:::registry
+     approve:::cicd
+     endpoint:::deploy
+     batch:::deploy
+     outpreds:::deploy
+     policy:::govern
+     mon:::govern
+     cw:::govern
+     ext:::external
+    classDef external fill:#f3f4f6,stroke:#374151,color:#111827
+    classDef ingest   fill:#e7f5f0,stroke:#2a7f76,color:#0b3b37
+    classDef feature  fill:#efe9ff,stroke:#6b46c1,color:#37237f
+    classDef train    fill:#fff1e6,stroke:#cc7a00,color:#7a4a00
+    classDef cicd     fill:#e8f7ff,stroke:#0ea5e9,color:#0b4262
+    classDef registry fill:#fff4e5,stroke:#f59e0b,color:#7a4f00
+    classDef deploy   fill:#e7efff,stroke:#1e64b7,color:#103a71
+    classDef govern   fill:#eef6e6,stroke:#5b8a24,color:#2c4a14
+    classDef Title fill:#FF99FF00, stroke-width:0, color:grey, font-weight:bold, font-size: 20px;
+    linkStyle 0,1,4,5,6,7,8,10,11,12,13,14,15,16,17,19,20,21 stroke:darkgray,stroke-width:2px;
+    class S0 Title;
+    class S1 Title;
+    class S2 Title;
+    class S25 Title;
+    class S3 Title;
+    class S4 Title;
+    class Ops Title;
+    style S4 fill:#FFF9C4
+    style S0 fill:#C8E6C9
+    style S2 fill:#C8E6C9
+    style S25 fill:#BBDEFB
+    style S3 fill:#BBDEFB
+    style S1 fill:#C8E6C9
